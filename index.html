@@ -36,10 +36,7 @@ a{color:var(--a2);text-decoration:none;}a:hover{text-decoration:underline;}
 .modebt:hover{background:var(--bg3);color:var(--tx);}
 .modebt.on{background:var(--af);color:var(--a);}
 .sp{flex:1;}
-#apidot{width:7px;height:7px;border-radius:50%;background:var(--tx3);transition:background .4s;flex-shrink:0;}
-#apidot.ok{background:var(--ok);box-shadow:0 0 7px var(--ok);}
-#apidot.warn{background:#f59e0b;}
-#apilbl{font-size:9.5px;color:var(--tx3);font-family:var(--fm);margin:0 8px;}
+
 .topbtn{height:28px;padding:0 12px;border-radius:6px;border:1px solid var(--e2);background:var(--bg3);color:var(--tx2);font-size:11.5px;font-weight:500;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap;}
 .topbtn:hover{background:var(--bg4);color:var(--tx);}
 .topbtn.pri{background:var(--a);color:#fff;border-color:var(--a);font-weight:700;}
@@ -297,9 +294,7 @@ audio.mau.show{display:block;}
     </button>
   </div>
   <div class="sp"></div>
-  <div id="apidot"></div><span id="apilbl">checking…</span>
-  <button class="topbtn" onclick="openM('api-m')">⚙ Keys</button>
-  <div class="tvs"></div>
+
   <div id="dex" style="display:flex;gap:5px;">
     <button class="topbtn" onclick="expPNG()">↓ PNG</button>
     <button class="topbtn" onclick="expPDF()">↓ PDF</button>
@@ -862,25 +857,6 @@ audio.mau.show{display:block;}
 <input type="file" id="aud-cap-in" accept="audio/*,video/*" style="display:none" onchange="e=>{audCapFile=e.target.files[0];if(audCapFile)G('aud-cap-name').textContent='📎 '+audCapFile.name;e.target.value='';}">
 
 <!-- ======================== MODALS ======================== -->
-<!-- API -->
-<div class="mov" id="api-m">
-  <div class="mbox">
-    <div class="mhd"><div>
-      <div class="mti">⚡ API Keys <span class="mba">VERCEL + FALLBACK</span></div>
-      <div class="msub" style="margin-top:5px;">
-        <strong>Vercel (recommended):</strong> Go to your Vercel project → Settings → Environment Variables → add <code>GROQ_KEY_1</code>, <code>GROQ_KEY_2</code>, <code>GROQ_KEY_3</code> → Redeploy.<br><br>
-        <strong>Local dev only:</strong> Enter a fallback key below (stored only in your browser).
-      </div>
-    </div><button class="mcl" onclick="closeM('api-m')">✕</button></div>
-    <div id="api-chk" style="padding:9px;border-radius:var(--r);border:1px solid var(--e2);background:var(--bg3);margin-bottom:12px;font-size:11px;color:var(--tx2);line-height:1.6;white-space:pre-wrap;">Checking…</div>
-    <div class="mf">
-      <label>⚡ Fastest fix — paste a Groq key here</label>
-      <input type="password" id="fkey" placeholder="gsk_…" autocomplete="off">
-      <div style="font-size:10.5px;color:var(--tx2);margin-top:5px;line-height:1.5;">This stores the key in your browser only. Works immediately — no Vercel needed.<br>Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> (takes 30 seconds).</div>
-    </div>
-    <div class="mrow"><button class="mb" onclick="closeM('api-m')">Cancel</button><button class="mb a" onclick="saveFKey()">Save Key</button></div>
-  </div>
-</div>
 
 <!-- AI Write -->
 <div class="mov" id="ai-m">
@@ -999,76 +975,44 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 // ═══════════════════════════════════════════════════════
 //  APP STATE
 // ═══════════════════════════════════════════════════════
-const A={fkey:localStorage.getItem('lumio_fkey')||'',vercelOk:null,voice:'Fritz-PlayAI',tone:'Professional',writeTab:'gen',ttsBlob:null};
+const A={voice:'Fritz-PlayAI',tone:'Professional',writeTab:'gen',ttsBlob:null};
 let expCancelled=false,bgAudFile=null,audCapFile=null;
 
 // ═══════════════════════════════════════════════════════
 //  API
 // ═══════════════════════════════════════════════════════
-async function chkVercel(){
-  try{
-    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:[{role:'user',content:'hi'}],max_tokens:2}),signal:AbortSignal.timeout(5000)});
-    if(r.status===404){A.vercelOk=false;}
-    else{const d=await r.json().catch(()=>({}));
-      if(d.choices){A.vercelOk=true;}
-      else if(d.error&&(d.error.toLowerCase().includes('no api key')||d.error.toLowerCase().includes('no keys'))){A.vercelOk='nokeys';}
-      else{A.vercelOk=r.ok;}}
-  }catch{A.vercelOk=false;}
-  const dot=G('apidot'),lbl=G('apilbl'),chk=G('api-chk');
-  if(A.vercelOk===true){dot.className='ok';lbl.textContent='OK';if(chk)chk.textContent='✅ Vercel API working — all keys active.';}
-  else if(A.vercelOk==='nokeys'){
-    if(A.fkey){dot.className='warn';lbl.textContent='Fallback';if(chk)chk.textContent='✅ Using fallback key (browser). Vercel functions exist but server keys need setup.';}
-    else{lbl.textContent='No Keys';if(chk)chk.textContent='⚠ Vercel functions deployed but GROQ_KEY_1 is missing.\n\nFix: Vercel → your project → Settings → Environment Variables → add GROQ_KEY_1 → Save → Deployments → Redeploy.\n\nOR: enter a key below for instant local use.';}
-  } else if(A.fkey){dot.className='warn';lbl.textContent='Fallback';if(chk)chk.textContent='✅ Using fallback key. AI features are active.';}
-  else{lbl.textContent='No Key';if(chk)chk.textContent='⚠ No key configured. Quickest fix: enter your Groq key below and click Save. Free keys at console.groq.com';}
-}
-
-// Smart API caller: tries Vercel proxy, falls back to direct Groq if proxy has no keys or fails
-async function callAPI(vercelFn, directFn) {
-  if(A.vercelOk===true) {
-    try { const r=await vercelFn(); if(r!==null) return r; } catch(e) { if(!A.fkey) throw e; }
-  } else if(A.vercelOk!=='nokeys' && A.vercelOk!==false) {
-    // Unknown state — try both
-    try { const r=await vercelFn(); if(r!==null){ A.vercelOk=true; return r; } } catch(e) { /* fall through */ }
+// All AI calls go through Vercel serverless functions — API keys are server-side only
+async function apiCall(endpoint, options={}) {
+  const r = await fetch(endpoint, options);
+  if (!r.ok) {
+    const e = await r.json().catch(()=>({}));
+    throw new Error(e.error || `Service error ${r.status}. Make sure GROQ_KEY_1 is set in Vercel Environment Variables.`);
   }
-  if(!A.fkey) throw new Error('No API key. Click ⚙ Keys → paste your Groq key → Save. Free keys at console.groq.com');
-  return directFn();
+  return r;
 }
 
-async function apiChat(sys,usr,maxT=1000){
-  const h={'Content-Type':'application/json'};
-  const body={system:sys,messages:[{role:'user',content:usr}],max_tokens:maxT};
-  return callAPI(
-    async()=>{const r=await fetch('/api/chat',{method:'POST',headers:h,body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(d.choices)return d.choices[0].message.content;if(d.error&&d.error.toLowerCase().includes('no api key'))return null;if(!r.ok)throw new Error(d.error||`Error ${r.status}`);return null;},
-    async()=>{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{...h,Authorization:`Bearer ${A.fkey}`},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:maxT,messages:sys?[{role:'system',content:sys},{role:'user',content:usr}]:[{role:'user',content:usr}]})});if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||`Groq error ${r.status}`);}return(await r.json()).choices[0].message.content;}
-  );
+async function apiChat(sys, usr, maxT=1000) {
+  const r = await apiCall('/api/chat', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({system:sys, messages:[{role:'user',content:usr}], max_tokens:maxT})
+  });
+  const d = await r.json();
+  return d.choices[0].message.content;
 }
 
-async function apiTTS(text,voice,speed){
-  const h={'Content-Type':'application/json'};
-  return callAPI(
-    async()=>{const r=await fetch('/api/tts',{method:'POST',headers:h,body:JSON.stringify({text,voice,speed})});if(r.ok)return await r.blob();const d=await r.json().catch(()=>({}));if(d.error&&d.error.toLowerCase().includes('no api key'))return null;throw new Error(d.error||`TTS ${r.status}`);},
-    async()=>{const r=await fetch('https://api.groq.com/openai/v1/audio/speech',{method:'POST',headers:{...h,Authorization:`Bearer ${A.fkey}`},body:JSON.stringify({model:'playai-tts',input:text.slice(0,4096),voice,speed,response_format:'mp3'})});if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||`TTS ${r.status}`);}return await r.blob();}
-  );
+async function apiTTS(text, voice, speed) {
+  const r = await apiCall('/api/tts', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text, voice, speed})
+  });
+  return await r.blob();
 }
 
-async function apiSTT(fd){
-  return callAPI(
-    async()=>{const r=await fetch('/api/transcribe',{method:'POST',body:fd});if(r.ok)return await r.json();const d=await r.json().catch(()=>({}));if(d.error&&d.error.toLowerCase().includes('no api key'))return null;throw new Error(d.error||`STT ${r.status}`);},
-    async()=>{const r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{Authorization:`Bearer ${A.fkey}`},body:fd});if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||`STT ${r.status}`);}return await r.json();}
-  );
+async function apiSTT(fd) {
+  const r = await apiCall('/api/transcribe', {method:'POST', body:fd});
+  return await r.json();
 }
 
-function saveFKey(){
-  const k=G('fkey').value.trim();
-  if(!k){toast('Enter a key first','err');return;}
-  A.fkey=k;localStorage.setItem('lumio_fkey',k);
-  G('apidot').className='warn';G('apilbl').textContent='Fallback';
-  closeM('api-m');
-  toast('✅ Key saved! All AI features are now active.','ok');
-  chkVercel();
-}
 
 // ═══════════════════════════════════════════════════════
 //  DESIGN CANVAS
@@ -1675,8 +1619,6 @@ async function runPalette(){
 window.addEventListener('load',()=>{
   initDesignCanvas();
   initVideoCanvas();
-  if(G('fkey'))G('fkey').value=A.fkey;
-  chkVercel();
 });
 </script>
 </body>
