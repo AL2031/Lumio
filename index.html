@@ -854,7 +854,7 @@ audio.mau.show{display:block;}
 <input type="file" id="img-in" accept="image/*" style="display:none" onchange="hdlImg(event)">
 <input type="file" id="vid-bg-in" accept="video/*" style="display:none" onchange="hdlVidBG(event)">
 <input type="file" id="bg-aud-in" accept="audio/*" style="display:none" onchange="e=>{bgAudFile=e.target.files[0];if(bgAudFile)G('aud-name').textContent='🎵 '+bgAudFile.name;e.target.value='';}">
-<input type="file" id="aud-cap-in" accept="audio/*,video/*" style="display:none" onchange="e=>{audCapFile=e.target.files[0];if(audCapFile)G('aud-cap-name').textContent='📎 '+audCapFile.name;e.target.value='';}">
+<input type="file" id="aud-cap-in" accept="audio/*,video/*" style="display:none" onchange="e=>{audCapFile=e.target.files[0];if(audCapFile){G('aud-cap-name').textContent='📎 '+audCapFile.name;runAutoCaption();}e.target.value='';}">
 
 <!-- ======================== MODALS ======================== -->
 
@@ -909,15 +909,12 @@ audio.mau.show{display:block;}
     <div class="mf"><label>Text <span id="tts-cc" style="color:var(--tx3);">0/4096</span></label><textarea id="tts-txt" placeholder="Text to speak…" style="min-height:80px;" oninput="G('tts-cc').textContent=this.value.length+'/4096'"></textarea></div>
     <div class="mf"><label>Voice</label>
       <div class="vgrid">
-        <div class="vopt on" data-v="Fritz-PlayAI" onclick="selV(this)"><div class="vn">Fritz</div><div class="vt">Male·Deep</div></div>
-        <div class="vopt" data-v="Arista-PlayAI" onclick="selV(this)"><div class="vn">Arista</div><div class="vt">Female·Clear</div></div>
-        <div class="vopt" data-v="Atlas-PlayAI" onclick="selV(this)"><div class="vn">Atlas</div><div class="vt">Male·Natural</div></div>
-        <div class="vopt" data-v="Basil-PlayAI" onclick="selV(this)"><div class="vn">Basil</div><div class="vt">Male·Warm</div></div>
-        <div class="vopt" data-v="Briggs-PlayAI" onclick="selV(this)"><div class="vn">Briggs</div><div class="vt">Male·Strong</div></div>
-        <div class="vopt" data-v="Calista-PlayAI" onclick="selV(this)"><div class="vn">Calista</div><div class="vt">Female·Bright</div></div>
-        <div class="vopt" data-v="Celeste-PlayAI" onclick="selV(this)"><div class="vn">Celeste</div><div class="vt">Female·Soft</div></div>
-        <div class="vopt" data-v="Chip-PlayAI" onclick="selV(this)"><div class="vn">Chip</div><div class="vt">Male·Young</div></div>
-        <div class="vopt" data-v="Mitch-PlayAI" onclick="selV(this)"><div class="vn">Mitch</div><div class="vt">Male·Low</div></div>
+        <div class="vopt on" data-v="austin" onclick="selV(this)"><div class="vn">Austin</div><div class="vt">Male·Deep</div></div>
+        <div class="vopt" data-v="daniel" onclick="selV(this)"><div class="vn">Daniel</div><div class="vt">Male·Natural</div></div>
+        <div class="vopt" data-v="troy" onclick="selV(this)"><div class="vn">Troy</div><div class="vt">Male·Strong</div></div>
+        <div class="vopt" data-v="autumn" onclick="selV(this)"><div class="vn">Autumn</div><div class="vt">Female·Warm</div></div>
+        <div class="vopt" data-v="diana" onclick="selV(this)"><div class="vn">Diana</div><div class="vt">Female·Clear</div></div>
+        <div class="vopt" data-v="hannah" onclick="selV(this)"><div class="vn">Hannah</div><div class="vt">Female·Soft</div></div>
       </div>
     </div>
     <div class="prog" id="tts-prog"><div class="progf"></div></div>
@@ -974,7 +971,7 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 // ═══════════════════════════════════════════════════════
 //  APP STATE
 // ═══════════════════════════════════════════════════════
-const A={voice:'Fritz-PlayAI',tone:'Professional',writeTab:'gen',ttsBlob:null};
+const A={voice:'austin',tone:'Professional',writeTab:'gen',ttsBlob:null};
 let expCancelled=false,bgAudFile=null,audCapFile=null;
 
 // ═══════════════════════════════════════════════════════
@@ -1394,37 +1391,36 @@ function selCapSty(el){
 
 // Auto Caption via Groq Whisper
 async function runAutoCaption(){
-  // Use first scene video as source, or uploaded audio file, or prompt upload
-  const sc=scenes[curSc];
-  let fileToUse=audCapFile;
-  if(!fileToUse&&sc?.bgVideoURL){
-    // Use the scene's video — need original file, stored in scene
-    toast('Upload an audio/video file using "Upload Audio to Caption" or add a video clip to the scene first.','err');
-    return;
-  }
-  if(!fileToUse){
+  // If no file uploaded yet, open picker — the onchange will auto-call us again after selection
+  if(!audCapFile){
     G('aud-cap-in').click();
-    toast('Please select an audio/video file to transcribe.','ok');
     return;
   }
-  const stat=G('ac-status');stat.classList.add('open');stat.textContent='⏳ Transcribing with Groq Whisper…';
+  const stat=G('ac-status');
+  stat.classList.add('open');
+  stat.textContent='⏳ Transcribing with Groq Whisper… (this may take a few seconds)';
   try{
     const fd=new FormData();
-    fd.append('file',fileToUse,fileToUse.name);
-    fd.append('model','whisper-large-v3-turbo');
-    fd.append('response_format','verbose_json');
-    fd.append('timestamp_granularities[]','segment');
-    const lang=G('stt-lang')?.value||'';
-    if(lang)fd.append('language',lang);
-    const data=await apiSTT(fd);
-    const segs=data.segments||[{start:0,end:5,text:data.text||''}];
-    VS.rawSegs=segs;
-    VS.captions=segs.map((s,i)=>({id:i,s:s.start,e:s.end,text:s.text.trim()}));
+    fd.append('file', audCapFile, audCapFile.name);
+    fd.append('model', 'whisper-large-v3-turbo');
+    fd.append('response_format', 'verbose_json');
+    fd.append('timestamp_granularities[]', 'segment');
+    const data = await apiSTT(fd);
+    const segs = data.segments && data.segments.length > 0
+      ? data.segments
+      : [{start:0, end:Math.max(5, data.duration||5), text: data.text||'(no speech detected)'}];
+    VS.rawSegs = segs;
+    VS.captions = segs.map((s,i) => ({id:i, s:s.start, e:s.end, text:s.text.trim()}));
     rndrCapList();
     rndrCapChips();
-    stat.textContent=`✅ ${VS.captions.length} captions generated!`;
-    toast(`${VS.captions.length} captions ready`,'ok');
-  }catch(e){stat.textContent='❌ '+e.message;toast(e.message,'err');}
+    stat.textContent = `✅ ${VS.captions.length} caption${VS.captions.length===1?'':'s'} generated!`;
+    toast(`${VS.captions.length} captions ready — see Captions tab`,'ok');
+    // Switch to captions tab so user sees result
+    setVLPTab('captions');
+  }catch(e){
+    stat.textContent = '❌ Transcription failed: ' + e.message;
+    toast('Transcription failed: '+e.message,'err');
+  }
 }
 
 function rndrCapList(){
