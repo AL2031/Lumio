@@ -1,5 +1,8 @@
-// api/tts.js — server-side Groq PlayAI TTS proxy
+// api/tts.js — server-side Groq TTS proxy
+// Model: playai-tts  |  Valid voices: austin, daniel, troy, autumn, diana, hannah
 const KEYS = [process.env.GROQ_KEY_1, process.env.GROQ_KEY_2, process.env.GROQ_KEY_3].filter(Boolean);
+
+const VALID_VOICES = new Set(['austin','daniel','troy','autumn','diana','hannah']);
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -9,10 +12,12 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!KEYS.length) return res.status(503).json({ error: "TTS service not configured." });
 
-  const { text, voice = "Fritz-PlayAI" } = req.body || {};
+  let { text, voice = "austin" } = req.body || {};
   if (!text?.trim()) return res.status(400).json({ error: "text is required" });
 
-  // Note: speed param omitted — not supported by all playai-tts versions and causes 400
+  // Sanitize voice — fall back to "austin" if an old/invalid name is passed
+  if (!VALID_VOICES.has(voice)) voice = "austin";
+
   const payload = JSON.stringify({
     model: "canopylabs/orpheus-v1-english",
     input: text.slice(0, 4096),
@@ -33,17 +38,13 @@ module.exports = async function handler(req, res) {
       if (r.status === 401) { lastErr = "Auth error."; break; }
 
       if (!r.ok) {
-        // Surface the actual Groq error so we can debug
         const errBody = await r.json().catch(() => ({}));
         lastErr = errBody?.error?.message || errBody?.error || `Groq error ${r.status}`;
         continue;
       }
 
       const buf = await r.arrayBuffer();
-      if (buf.byteLength < 100) {
-        lastErr = "Groq returned empty audio.";
-        continue;
-      }
+      if (buf.byteLength < 100) { lastErr = "Groq returned empty audio."; continue; }
 
       res.setHeader("Content-Type", "audio/mpeg");
       return res.send(Buffer.from(buf));
