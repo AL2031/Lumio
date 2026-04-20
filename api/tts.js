@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
 
   // Note: speed param omitted — not supported by all playai-tts versions and causes 400
   const payload = JSON.stringify({
-    model: "playai-tts",
+    model: "canopylabs/orpheus-v1-english",
     input: text.slice(0, 4096),
     voice,
     response_format: "mp3",
