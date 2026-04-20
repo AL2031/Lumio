@@ -920,7 +920,6 @@ audio.mau.show{display:block;}
         <div class="vopt" data-v="Mitch-PlayAI" onclick="selV(this)"><div class="vn">Mitch</div><div class="vt">Male·Low</div></div>
       </div>
     </div>
-    <div class="mf"><label>Speed: <span id="spdlbl">1.0×</span></label><input type="range" id="tts-spd" min=".5" max="2" step=".1" value="1" oninput="G('spdlbl').textContent=this.value+'×'"></div>
     <div class="prog" id="tts-prog"><div class="progf"></div></div>
     <audio class="mau" id="tts-au" controls></audio>
     <div id="tts-dl" style="display:none;margin-top:7px;"><button class="mb b" style="width:100%;" onclick="dlTTS()">⬇ Download MP3</button></div>
@@ -1000,10 +999,10 @@ async function apiChat(sys, usr, maxT=1000) {
   return d.choices[0].message.content;
 }
 
-async function apiTTS(text, voice, speed) {
+async function apiTTS(text, voice) {
   const r = await apiCall('/api/tts', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({text, voice, speed})
+    body: JSON.stringify({text, voice})
   });
   return await r.blob();
 }
@@ -1565,7 +1564,34 @@ async function aiTx(op){const o=cnv.getActiveObject();if(!o||!['textbox','text']
 
 async function vAiTx(op){const o=cnv2.getActiveObject();if(!o||!['textbox','text'].includes(o.type)){toast('Select a text object','err');return;}const pm={fix:'Fix grammar. Return only corrected text.',exp:'Expand. Return only expanded text.',sht:'Shorten. Return only condensed text.','rep':'Rephrase. Return only rephrased text.'};toast('Processing…');try{const r=await apiChat(pm[op],o.text,600);o.set('text',r.trim());cnv2.renderAll();saveScState();toast('Done!','ok');}catch(e){toast(e.message,'err');}}
 
-async function runTTS(){const txt=G('tts-txt').value.trim();if(!txt){toast('Enter text','err');return;}const spd=+G('tts-spd').value;showP('tts-prog');G('tts-au').classList.remove('show');G('tts-dl').style.display='none';try{const blob=await apiTTS(txt,A.voice,spd);A.ttsBlob=blob;const url=URL.createObjectURL(blob);G('tts-au').src=url;G('tts-au').classList.add('show');G('tts-dl').style.display='block';G('tts-au').play();toast('Speech generated!','ok');}catch(e){if(window.speechSynthesis){toast('Groq TTS unavailable, using browser TTS','err');const u=new SpeechSynthesisUtterance(txt);u.rate=spd;speechSynthesis.speak(u);}else toast(e.message,'err');}finally{hideP('tts-prog');}}
+async function runTTS(){
+  const txt=G('tts-txt').value.trim();
+  if(!txt){toast('Enter text first','err');return;}
+  showP('tts-prog');
+  G('tts-au').classList.remove('show');
+  G('tts-dl').style.display='none';
+  try{
+    const blob=await apiTTS(txt,A.voice);
+    // Make sure we actually got audio back (not a JSON error response)
+    if(blob.type && blob.type.includes('application/json')){
+      const text=await blob.text();
+      const d=JSON.parse(text).catch?.(()=>({}));
+      throw new Error(d?.error||'TTS returned an error response');
+    }
+    if(blob.size<100) throw new Error('TTS returned empty audio — check Vercel logs');
+    A.ttsBlob=blob;
+    const url=URL.createObjectURL(blob);
+    G('tts-au').src=url;
+    G('tts-au').classList.add('show');
+    G('tts-dl').style.display='block';
+    G('tts-au').play();
+    toast('Speech generated!','ok');
+  }catch(e){
+    toast('TTS failed: '+e.message,'err');
+  }finally{
+    hideP('tts-prog');
+  }
+}
 function dlTTS(){if(A.ttsBlob)dlBlob(A.ttsBlob,'lumio-speech.mp3');}
 function selV(el){document.querySelectorAll('.vopt').forEach(v=>v.classList.remove('on'));el.classList.add('on');A.voice=el.dataset.v;}
 
