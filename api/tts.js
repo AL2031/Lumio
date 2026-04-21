@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
   if (!VALID_VOICES.has(voice)) voice = DEFAULT_VOICE;
 
   const payload = JSON.stringify({
-    model: "playai-tts",
+    model: "canopylabs/orpheus-v1-english",
     input: text.slice(0, 4096),
     voice,
     response_format: "wav",
