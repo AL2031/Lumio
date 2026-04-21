@@ -4,8 +4,8 @@
 // response_format must be "wav" for this model
 const KEYS = [process.env.GROQ_KEY_1, process.env.GROQ_KEY_2, process.env.GROQ_KEY_3].filter(Boolean);
 
-const VALID_VOICES = new Set(['tara','leah','jess','leo','dan','mia','zac','zoe']);
-const DEFAULT_VOICE = 'tara';
+const VALID_VOICES = new Set(['autumn','diana','hannah','austin','daniel','troy','zac']);
+const DEFAULT_VOICE = 'autumn';
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
