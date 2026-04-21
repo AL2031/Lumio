@@ -909,12 +909,14 @@ audio.mau.show{display:block;}
     <div class="mf"><label>Text <span id="tts-cc" style="color:var(--tx3);">0/4096</span></label><textarea id="tts-txt" placeholder="Text to speak…" style="min-height:80px;" oninput="G('tts-cc').textContent=this.value.length+'/4096'"></textarea></div>
     <div class="mf"><label>Voice</label>
       <div class="vgrid">
-        <div class="vopt on" data-v="austin" onclick="selV(this)"><div class="vn">Austin</div><div class="vt">Male·Deep</div></div>
-        <div class="vopt" data-v="daniel" onclick="selV(this)"><div class="vn">Daniel</div><div class="vt">Male·Natural</div></div>
-        <div class="vopt" data-v="troy" onclick="selV(this)"><div class="vn">Troy</div><div class="vt">Male·Strong</div></div>
-        <div class="vopt" data-v="autumn" onclick="selV(this)"><div class="vn">Autumn</div><div class="vt">Female·Warm</div></div>
-        <div class="vopt" data-v="diana" onclick="selV(this)"><div class="vn">Diana</div><div class="vt">Female·Clear</div></div>
-        <div class="vopt" data-v="hannah" onclick="selV(this)"><div class="vn">Hannah</div><div class="vt">Female·Soft</div></div>
+        <div class="vopt on" data-v="tara" onclick="selV(this)"><div class="vn">Tara</div><div class="vt">Female·Warm</div></div>
+        <div class="vopt" data-v="leah" onclick="selV(this)"><div class="vn">Leah</div><div class="vt">Female·Clear</div></div>
+        <div class="vopt" data-v="jess" onclick="selV(this)"><div class="vn">Jess</div><div class="vt">Female·Bright</div></div>
+        <div class="vopt" data-v="mia" onclick="selV(this)"><div class="vn">Mia</div><div class="vt">Female·Soft</div></div>
+        <div class="vopt" data-v="zoe" onclick="selV(this)"><div class="vn">Zoe</div><div class="vt">Female·Natural</div></div>
+        <div class="vopt" data-v="leo" onclick="selV(this)"><div class="vn">Leo</div><div class="vt">Male·Deep</div></div>
+        <div class="vopt" data-v="dan" onclick="selV(this)"><div class="vn">Dan</div><div class="vt">Male·Natural</div></div>
+        <div class="vopt" data-v="zac" onclick="selV(this)"><div class="vn">Zac</div><div class="vt">Male·Strong</div></div>
       </div>
     </div>
     <div class="prog" id="tts-prog"><div class="progf"></div></div>
@@ -971,7 +973,7 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 // ═══════════════════════════════════════════════════════
 //  APP STATE
 // ═══════════════════════════════════════════════════════
-const A={voice:'austin',tone:'Professional',writeTab:'gen',ttsBlob:null};
+const A={voice:'tara',tone:'Professional',writeTab:'gen',ttsBlob:null};
 let expCancelled=false,bgAudFile=null,audCapFile=null;
 
 // ═══════════════════════════════════════════════════════
@@ -1134,6 +1136,9 @@ function initVideoCanvas(){
   cnv2.on('selection:created',vOnSel);cnv2.on('selection:updated',vOnSel);
   cnv2.on('selection:cleared',()=>{G('vnosel').style.display='flex';G('vselpr').style.display='none';});
   cnv2.on('object:modified',()=>saveScState());
+  cnv2.on('object:modified',()=>refVLay());
+  cnv2.on('selection:created',()=>refVLay());
+  cnv2.on('selection:cleared',()=>refVLay());
   addScene(true);
   window.addEventListener('resize',()=>{if(curMode==='video')updVZ();else{updZ();updZL();}});
 }
@@ -1280,7 +1285,7 @@ function vptab(id){['props','effects','layers'].forEach(t=>{G('vpt-'+t).style.di
 
 function refVLay(){const el=G('vlaylist');if(!el)return;const objs=cnv2.getObjects(),act=cnv2.getActiveObject();if(!objs.length){el.innerHTML='<div style="padding:12px;text-align:center;color:var(--tx3);font-size:10.5px;">No objects in this scene</div>';return;}el.innerHTML=[...objs].reverse().map((o,i)=>{const ri=objs.length-1-i;const ic=o.type==='textbox'||o.type==='text'?'T':o.type==='image'?'🖼':o.type==='circle'?'●':o.type==='rect'?'▬':'◆';const lb=o.type==='textbox'?(o.text||'').slice(0,22):`${o.type} ${ri+1}`;return`<div class="layit${act===o?' on':''}" onclick="vSelLay(${ri})"><span class="layico">${ic}</span><span class="laylbl">${lb}</span><div class="layact"><button onclick="event.stopPropagation();cnv2.remove(cnv2.item(${ri}));cnv2.renderAll();saveScState();">✕</button></div></div>`;}).join('');}
 function vSelLay(i){cnv2.setActiveObject(cnv2.item(i));cnv2.requestRenderAll();updVProps();}
-cnv2?.on('object:modified',()=>refVLay());
+// moved into initVideoCanvas
 
 // ── TIMELINE ──────────────────────────────────────────
 function renderTLClips(){
@@ -1576,7 +1581,8 @@ async function runTTS(){
     }
     if(blob.size<100) throw new Error('TTS returned empty audio — check Vercel logs');
     A.ttsBlob=blob;
-    const url=URL.createObjectURL(blob);
+    // Support both mp3 and wav depending on TTS model
+    const url=URL.createObjectURL(new Blob([await blob.arrayBuffer()], {type: blob.type||'audio/mpeg'}));
     G('tts-au').src=url;
     G('tts-au').classList.add('show');
     G('tts-dl').style.display='block';
