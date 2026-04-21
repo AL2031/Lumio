@@ -1,8 +1,11 @@
 // api/tts.js — server-side Groq TTS proxy
-// Model: playai-tts  |  Valid voices: austin, daniel, troy, autumn, diana, hannah
+// Model: canopylabs/orpheus-tts-0.1-finetune-prod (orpheus)
+// Valid voices: tara, leah, jess, leo, dan, mia, zac, zoe
+// response_format must be "wav" for this model
 const KEYS = [process.env.GROQ_KEY_1, process.env.GROQ_KEY_2, process.env.GROQ_KEY_3].filter(Boolean);
 
-const VALID_VOICES = new Set(['austin','daniel','troy','autumn','diana','hannah']);
+const VALID_VOICES = new Set(['tara','leah','jess','leo','dan','mia','zac','zoe']);
+const DEFAULT_VOICE = 'tara';
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -12,17 +15,17 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!KEYS.length) return res.status(503).json({ error: "TTS service not configured." });
 
-  let { text, voice = "austin" } = req.body || {};
+  let { text, voice = DEFAULT_VOICE } = req.body || {};
   if (!text?.trim()) return res.status(400).json({ error: "text is required" });
 
-  // Sanitize voice — fall back to "austin" if an old/invalid name is passed
-  if (!VALID_VOICES.has(voice)) voice = "austin";
+  // Sanitize voice — if old/invalid name sent, fall back to default
+  if (!VALID_VOICES.has(voice)) voice = DEFAULT_VOICE;
 
   const payload = JSON.stringify({
-    model: "canopylabs/orpheus-v1-english",
+    model: "playai-tts",
     input: text.slice(0, 4096),
     voice,
-    response_format: "mp3",
+    response_format: "wav",
   });
 
   let lastErr = "TTS service unavailable.";
@@ -46,7 +49,7 @@ module.exports = async function handler(req, res) {
       const buf = await r.arrayBuffer();
       if (buf.byteLength < 100) { lastErr = "Groq returned empty audio."; continue; }
 
-      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Type", "audio/wav");
       return res.send(Buffer.from(buf));
 
     } catch (e) {
