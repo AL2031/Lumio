@@ -272,12 +272,40 @@ audio.mau.show{display:block;}
 .kbd{font-family:var(--fm);font-size:9px;padding:1px 5px;border-radius:3px;background:var(--bg5);border:1px solid var(--e2);color:var(--tx3);}
 
 /* Scene properties inline */
-#sc-props-bar{padding:6px 10px;background:var(--bg2);border-bottom:1px solid var(--e1);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+#sc-props-bar{padding:5px 10px;background:var(--bg2);border-bottom:1px solid var(--e1);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 #sc-props-bar label{font-size:10px;color:var(--tx2);}
-#sc-dur-inp{width:52px;height:24px;font-size:11px;font-family:var(--fm);background:var(--bg3);border:1px solid var(--e2);color:var(--tx);border-radius:4px;padding:0 6px;outline:none;}
-#sc-trans-sel{height:24px;font-size:10.5px;background:var(--bg3);border:1px solid var(--e2);color:var(--tx);border-radius:4px;padding:0 6px;outline:none;cursor:pointer;font-family:var(--f);}
+#sc-dur-inp{width:48px;height:23px;font-size:11px;font-family:var(--fm);background:var(--bg3);border:1px solid var(--e2);color:var(--tx);border-radius:4px;padding:0 6px;outline:none;}
+#sc-trans-sel{height:23px;font-size:10.5px;background:var(--bg3);border:1px solid var(--e2);color:var(--tx);border-radius:4px;padding:0 6px;outline:none;cursor:pointer;font-family:var(--f);}
 #sc-info{font-family:var(--fm);font-size:10px;color:var(--tx3);}
 #playhead{position:absolute;top:6px;bottom:6px;width:2px;background:var(--a);pointer-events:none;z-index:10;}
+
+/* ── VIDEO CANVAS SPECIFIC ─────────────────── */
+#vid-bg{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:none;border-radius:2px;z-index:0;
+}
+#vid-bg.show{display:block;}
+#vcnv-shadow canvas{position:relative;z-index:1;display:block;}
+#vcnv-shadow{position:relative;border-radius:2px;}
+#cap-ov-wrap{
+  position:absolute;bottom:40px;left:0;right:0;
+  display:flex;justify-content:center;
+  pointer-events:none;z-index:50;
+}
+#cap-ov{display:none;}
+
+/* ── TIMELINE ──────────────────────────────── */
+:root{--tl:108px;}
+#timeline{height:var(--tl);}
+#tl-topbar{height:30px;display:flex;align-items:center;padding:0 10px;gap:7px;border-bottom:1px solid var(--e1);flex-shrink:0;}
+#tl-scroll{flex:1;display:flex;align-items:center;overflow-x:auto;padding:5px 10px;position:relative;min-height:54px;}
+#cap-track{height:24px;flex-shrink:0;}
+
+/* ── VIDEO MODE LAYOUT FIX ─────────────────── */
+#vm{display:none;flex:1;flex-direction:column;overflow:hidden;}
+#vm.on{display:flex;}
+#vm > div:first-child{flex:1;display:flex;overflow:hidden;min-height:0;}
+#vcnv-wrap{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg0);}
 </style>
 </head>
 <body>
@@ -537,7 +565,7 @@ audio.mau.show{display:block;}
 </div>
 
 <!-- ===== VIDEO MODE ===== -->
-<div id="vm" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+<div id="vm">
   <div style="flex:1;display:flex;overflow:hidden;min-height:0;">
 
     <!-- Left panel video -->
@@ -705,13 +733,11 @@ audio.mau.show{display:block;}
         <button class="tl-btn" onclick="stopPreview()" id="stop-prev-btn" style="display:none;">■ Stop</button>
       </div>
       <!-- Preview canvas area -->
-      <div id="canvas-wrap" style="background:var(--bg0);position:relative;">
-        <div id="cnv-shadow" style="position:relative;">
+      <div id="vcnv-wrap" style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg0);position:relative;">
+        <div id="vcnv-shadow" style="position:relative;box-shadow:0 0 0 1px var(--e2),0 20px 60px rgba(0,0,0,.95);">
           <canvas id="mc2"></canvas>
-          <!-- Video background inside canvas shadow -->
-          <video id="vid-bg" loop playsinline></video>
-          <!-- Caption overlay inside canvas shadow -->
-          <div id="cap-ov-wrap" style="bottom:40px;">
+          <video id="vid-bg" loop playsinline muted></video>
+          <div id="cap-ov-wrap">
             <div id="cap-ov"></div>
           </div>
         </div>
@@ -1144,12 +1170,10 @@ function initVideoCanvas(){
 }
 
 function updVZ(){
-  const wrap=G('canvas-wrap');if(!wrap)return;
-  const p=50,s=Math.min((wrap.clientWidth-p)/vW,(wrap.clientHeight-p)/vH,1)*vZoom;
-  const sh=G('cnv-shadow');if(!sh)return;
+  const wrap=G('vcnv-wrap');if(!wrap)return;
+  const p=40,s=Math.min((wrap.clientWidth-p)/vW,(wrap.clientHeight-p)/vH,1)*vZoom;
+  const sh=G('vcnv-shadow');if(!sh)return;
   sh.style.transform=`scale(${s})`;sh.style.transformOrigin='center center';sh.style.width=vW+'px';sh.style.height=vH+'px';
-  // Position caption overlay
-  const capWrap=G('cap-ov-wrap');if(capWrap){capWrap.style.width=vW+'px';}
 }
 
 function setVSz(w,h){vW=w;vH=h;cnv2.setDimensions({width:w,height:h});cnv2.renderAll();updVZ();}
@@ -1322,30 +1346,94 @@ function seekByTimeline(e){
   for(let i=0;i<scenes.length;i++){const d=scenes[i].duration||3;if(t<=acc+d){tlTime=t;loadScene(i);G('playhead').style.left=Math.max(0,x-4)+'px';G('tl-time').textContent=fmtT(t);return;}acc+=d;}
 }
 
-// Timeline playback (preview)
+// Timeline playback (preview) — properly loads each scene once, then animates timing
 let prevRAF=null,prevCancelled=false;
+
 function previewAll(){
-  saveScState();prevCancelled=false;
-  G('stop-prev-btn').style.display='';G('sc-props-bar').querySelector('[onclick="previewAll()"]').style.display='none';
-  const tc=new fabric.StaticCanvas(null,{width:vW,height:vH});
-  let si=0,scT=0,lastTS=null;
-  function frame(ts){
+  saveScState();
+  prevCancelled=false;
+  const stopBtn=G('stop-prev-btn');
+  const prevBtn=G('sc-props-bar').querySelector('[onclick="previewAll()"]');
+  stopBtn.style.display='';
+  if(prevBtn)prevBtn.style.display='none';
+
+  let si=0,scElapsed=0,sceneLoaded=false,lastTS=null;
+  const vbg=G('vid-bg');
+
+  function loadNextScene(){
     if(prevCancelled){cleanup();return;}
-    if(lastTS===null)lastTS=ts;
-    const dt=(ts-lastTS)/1000;lastTS=ts;
-    const sc=scenes[si];if(!sc){cleanup();return;}
-    scT+=dt;
-    if(sc.json)tc.loadFromJSON(sc.json,()=>{tc.setBackgroundColor(sc.bgColor||'#1a1a2e',()=>{tc.renderAll();cnv2.clear();cnv2.setBackgroundColor(sc.bgColor||'#1a1a2e',()=>{});tc.getObjects().forEach(o=>{o.clone(cl=>{cnv2.add(cl);cnv2.renderAll();});});});});
-    // Captions
-    let globalT=0;for(let j=0;j<si;j++)globalT+=scenes[j].duration||3;globalT+=scT;
-    showCapAt(globalT);
-    if(scT>=sc.duration){si++;scT=0;lastTS=null;if(si>=scenes.length){cleanup();return;}}
-    prevRAF=requestAnimationFrame(frame);
+    const sc=scenes[si];
+    if(!sc){cleanup();return;}
+    sceneLoaded=false;
+    scElapsed=0;
+    lastTS=null;
+    // Load video bg
+    vbg.pause();
+    if(sc.bgVideoURL){vbg.src=sc.bgVideoURL;vbg.classList.add('show');vbg.play().catch(()=>{});}
+    else{vbg.classList.remove('show');vbg.src='';}
+    // Load canvas state then start timing
+    if(sc.json){
+      cnv2.loadFromJSON(sc.json,()=>{
+        cnv2.setBackgroundColor(sc.bgColor||'#1a1a2e',()=>{
+          cnv2.renderAll();
+          sceneLoaded=true;
+          prevRAF=requestAnimationFrame(tick);
+        });
+      });
+    } else {
+      cnv2.clear();
+      cnv2.setBackgroundColor(sc.bgColor||'#1a1a2e',()=>cnv2.renderAll());
+      sceneLoaded=true;
+      prevRAF=requestAnimationFrame(tick);
+    }
   }
-  loadScene(0);prevRAF=requestAnimationFrame(frame);
-  function cleanup(){G('stop-prev-btn').style.display='none';const pb=G('sc-props-bar').querySelector('[onclick="previewAll()"]');if(pb)pb.style.display='';loadScene(curSc);G('cap-ov').style.display='none';}
+
+  function tick(ts){
+    if(prevCancelled){cleanup();return;}
+    if(!sceneLoaded){prevRAF=requestAnimationFrame(tick);return;}
+    if(lastTS===null)lastTS=ts;
+    const dt=Math.min((ts-lastTS)/1000, 0.1); // cap dt to avoid huge jumps
+    lastTS=ts;
+    scElapsed+=dt;
+    // Captions
+    let globalT=0;for(let j=0;j<si;j++)globalT+=scenes[j].duration||3;
+    showCapAt(globalT+scElapsed);
+    // Move timeline playhead
+    const totalBefore=globalT;
+    const totalDur=scenes.reduce((a,s)=>a+(s.duration||3),0);
+    const PX_PER_SEC=50;
+    const xPx=(totalBefore+scElapsed)*PX_PER_SEC;
+    G('playhead').style.left=xPx+'px';
+    G('tl-time').textContent=fmtT(totalBefore+scElapsed);
+    // Next scene?
+    if(scElapsed>=(scenes[si].duration||3)){
+      si++;
+      if(si>=scenes.length){cleanup();return;}
+      loadNextScene();return;
+    }
+    prevRAF=requestAnimationFrame(tick);
+  }
+
+  function cleanup(){
+    stopBtn.style.display='none';
+    if(prevBtn)prevBtn.style.display='';
+    vbg.pause();
+    G('cap-ov').style.display='none';
+    G('tl-playbtn').textContent='▶';
+    tlPlaying=false;
+    loadScene(curSc);
+  }
+
+  loadNextScene();
 }
-function stopPreview(){prevCancelled=true;if(prevRAF)cancelAnimationFrame(prevRAF);G('stop-prev-btn').style.display='none';}
+
+function stopPreview(){
+  prevCancelled=true;
+  if(prevRAF)cancelAnimationFrame(prevRAF);
+  G('stop-prev-btn').style.display='none';
+  G('tl-playbtn').textContent='▶';
+  tlPlaying=false;
+}
 
 // Timeline play button
 function tlPlay(){
@@ -1521,10 +1609,10 @@ function setMode(m){
   G('tab-design').classList.toggle('on',m==='design');
   G('tab-video').classList.toggle('on',m==='video');
   G('dm').style.display=m==='design'?'flex':'none';
-  G('vm').style.display=m==='video'?'flex':'none';
+  G('vm').classList.toggle('on',m==='video');
   G('dex').style.display=m==='design'?'flex':'none';
   G('vex').style.display=m==='video'?'flex':'none';
-  if(m==='video'){setTimeout(()=>updVZ(),50);updTLDuration();}
+  if(m==='video'){setTimeout(()=>updVZ(),80);updTLDuration();}
   if(m==='design'){setTimeout(()=>{updZ();updZL();},50);}
 }
 
